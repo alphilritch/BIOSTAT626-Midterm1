@@ -1,0 +1,155 @@
+---
+title: "Untitled"
+author: "Weiyu Zeng"
+date: "2023-04-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(caret)
+library(dplyr)
+library(e1071)
+# Read in data
+my_data <- read.table("E://Desktop//Biostat 626//Midterm1//training_data.txt", header = TRUE)
+
+# Create multiclass variable
+for (i in 1:nrow(my_data)) {
+  if (my_data$activity[i] >= 7) {
+    my_data$multiclass[i] = 7
+  } else {
+    my_data$multiclass[i] = my_data$activity[i]
+  }
+}
+my_data_train2 <- select(my_data, -activity)
+
+# Preprocess data
+train_data_preprocessed <- na.omit(my_data_train2[, c(2:562, 563)])
+
+# Check the dimensions and structure of the original and preprocessed data
+dim(my_data_train2)
+str(my_data_train2)
+dim(train_data_preprocessed)
+str(train_data_preprocessed)
+
+# Split data into training and testing sets
+set.seed(123)
+trainIndex <- createDataPartition(my_data$multiclass, p = 0.8, list = FALSE)
+trainData <- train_data_preprocessed[trainIndex, 1:560]
+trainLabels <- my_data$multiclass[trainIndex]
+testData <- train_data_preprocessed[-trainIndex, 1:560]
+testLabels <- my_data$multiclass[-trainIndex]
+
+# Train the SVM model
+svm_model <- svm(trainData, trainLabels, kernel = "radial", gamma = 0.1, cost = 20)
+
+# Make predictions on the testing set
+predictions <- predict(svm_model, testData)
+
+# Evaluate the performance of the SVM model
+#confusionMatrix(predictions, testLabels)
+
+# Scale the test data using the training data center and scale values
+newdata <- read.table("E://Desktop//Biostat 626//Midterm1//test_data.txt", header = TRUE)
+scaled_newdata <- newdata[, 2:561] # Exclude subject IDs
+
+# Make predictions on the test data
+test_predictions <- predict(svm_model, scaled_newdata)
+
+# Round predictions and write to file
+test_predictions <- as.integer(round(test_predictions))
+for (i in 1:length(test_predictions)) {
+  if (test_predictions[i] >= 7) {
+    test_predictions[i] <- 7
+  }
+}
+for (i in 1:length(test_predictions)) {
+  if (test_predictions[i] <= 1) {
+    test_predictions[i] <- 1
+  }
+}
+write.table(test_predictions, file = 'E://Desktop//Biostat 626//Midterm1//multiclass_371200120.txt', row.names = FALSE, col.names = FALSE)
+```
+
+
+```{r}
+# Set up the tuning grid
+tune_grid <- expand.grid(
+  cost = c(1, 10),
+  gamma = c(0.0001, 0.001)
+)
+
+# Tune the SVM model using cross-validation
+svm_tune <- tune.svm(
+  x = trainData,
+  y = trainLabels,
+  kernel = "radial",
+  gamma = tune_grid$gamma,
+  cost = tune_grid$cost,
+  tunecontrol = tune.control(sampling = "cross")
+)
+
+# Print the results of the tuning
+svm_tune
+
+# Select the best SVM model based on the tuning results
+best_svm <- svm_tune$best.model
+```
+```{r}
+set.seed(123)
+trainIndex <- createDataPartition(my_data$multiclass, p = 0.8, list = FALSE)
+trainData <- train_data_preprocessed[trainIndex, 1:560]
+trainLabels <- my_data$multiclass[trainIndex]
+testData <- train_data_preprocessed[-trainIndex, 1:560]
+testLabels <- my_data$multiclass[-trainIndex]
+
+# Set up the grid of parameter values to search
+cost_vals <- c(0.01, 0.1, 1, 10, 100)
+gamma_vals <- c(0.0001, 0.001, 0.01, 0.1, 1)
+
+# Train and evaluate SVM models for all combinations of parameter values
+best_accuracy <- 0
+best_cost <- 0
+best_gamma <- 0
+for (cost_val in cost_vals) {
+  for (gamma_val in gamma_vals) {
+    svm_model <- svm(trainData, trainLabels, kernel = "radial", gamma = gamma_val, cost = cost_val)
+    predictions <- predict(svm_model, testData)
+    accuracy <- mean(predictions == testLabels)
+    if (accuracy > best_accuracy) {
+      best_accuracy <- accuracy
+      best_cost <- cost_val
+      best_gamma <- gamma_val
+    }
+  }
+}
+
+# Train the final SVM model using the best parameter values
+svm_model <- svm(trainData, trainLabels, kernel = "radial", gamma = best_gamma, cost = best_cost)
+
+# Make predictions on the testing set
+predictions <- predict(svm_model, testData)
+
+# Evaluate the performance of the SVM model
+confusionMatrix(predictions, testLabels)
+
+# Scale the test data using the training data center and scale values
+newdata <- read.table("E://Desktop//Biostat 626//Midterm1//test_data.txt", header = TRUE)
+scaled_newdata <- newdata[, 2:561] # Exclude subject IDs
+
+# Make predictions on the test data
+test_predictions <- predict(svm_model, scaled_newdata)
+
+# Round predictions and write to file
+test_predictions <- as.integer(round(test_predictions))
+for (i in 1:length(test_predictions)) {
+  if (test_predictions[i] >= 7) {
+    test_predictions[i] <- 7
+  }
+}
+write.table(test_predictions, file = 'multiclass_3712best.txt', row.names = FALSE, col.names = FALSE)
+```
+

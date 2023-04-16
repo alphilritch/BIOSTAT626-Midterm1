@@ -1,0 +1,120 @@
+---
+title: "multiclass"
+author: "Weiyu Zeng"
+date: "2023-04-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+#install.packages('caTools')
+library(caTools)
+#install.packages('nnet')
+library(nnet)
+library(caret)
+library(randomForest)
+library(e1071)
+```
+
+```{r}
+# read the .txt file into a dataframe
+my_data <- read.table("E://Desktop//Biostat 626//Midterm1//training_data.txt", header = TRUE)
+
+# print the first few rows of the dataframe to verify that it was read in correctly
+head(my_data)
+
+for (i in 1: nrow(my_data)) {
+  if (my_data$activity[i] >= 7) {
+    my_data$multiclass[i] = 7
+  } else {
+    my_data$multiclass[i] = my_data$activity[i]
+  }
+}
+my_data_train2 <- select(my_data, -activity)
+head(my_data_train2)
+# read the .txt file into a dataframe
+test_data <- read.table("E://Desktop//Biostat 626//Midterm1//test_data.txt", header = TRUE)
+
+# print the first few rows of the dataframe to verify that it was read in correctly
+head(test_data)
+```
+
+```{r}
+train_data_preprocessed <- na.omit(my_data_train2[, c(2:562, 563)])
+head(train_data_preprocessed)
+```
+
+```{r}
+# Set up the cross-validation and control parameters
+train_control <- trainControl(method = "cv", number = 5)
+
+# Train the model
+set.seed(123)
+model <- train(multiclass ~ .,
+               data = train_data_preprocessed,
+               method = "rf",
+               trControl = train_control,
+               ntree = 100,
+               importance = TRUE)
+```
+
+```{r}
+predictions <- predict(model, newdata = test_data)
+#print(predictions)
+#print(as.integer(round((predictions))))
+output5 <- as.integer(round((predictions)))
+for (i in 1:length(output5)) {
+  if (output5[i] >= 7) {
+    output5[i] <- 7
+  }
+}
+#print(output5)
+write.table(output5, file = 'multi_3712.txt', row.names = FALSE, col.names = FALSE)
+```
+
+```{r}
+# Set up the cross-validation and control parameters
+train_control2 <- trainControl(method = "cv", number = 15)
+
+# Train the model
+set.seed(123)
+model2 <- train(multiclass ~ .,
+               data = train_data_preprocessed,
+               method = "rf",
+               trControl = train_control2,
+               ntree = 150,
+               importance = TRUE)
+
+```
+
+```{r}
+predictions2 <- predict(model2, newdata = test_data)
+#print(predictions)
+#print(as.integer(round((predictions))))
+output6 <- as.integer(round((predictions2)))
+for (i in 1:length(output6)) {
+  if (output6[i] >= 7) {
+    output6[i] <- 7
+  }
+}
+#print(output5)
+write.table(output6, file = 'multiclass_itriedmybest.txt', row.names = FALSE, col.names = FALSE)
+```
+
+
+```{r}
+output1 <- read.table('E://Desktop//Biostat 626//Midterm1//binary_3712.txt')
+for (i in 1:length(output5)) {
+  if (output5[i] <= 3) {
+    output5[i] <- 1
+  } else {
+    output5[i] <- 0
+  }
+}
+all.equal(output1, output5)
+```
+

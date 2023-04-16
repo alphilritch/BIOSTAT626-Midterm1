@@ -1,0 +1,287 @@
+---
+title: "BIOSTAT626 Midterm 1"
+author: "Weiyu Zeng"
+date: "2023-03-25"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(dplyr)
+#install.packages('caTools')
+library(caTools)
+#install.packages('nnet')
+library(nnet)
+```
+
+```{r}
+# set working directory to where the .txt file is located
+#setwd("E://Desktop//Biostat 626//Midterm1")
+
+# read the .txt file into a dataframe
+my_data <- read.table("E://Desktop//Biostat 626//Midterm1//training_data.txt", header = TRUE)
+
+# print the first few rows of the dataframe to verify that it was read in correctly
+head(my_data)
+```
+```{r}
+print(my_data$activity[1])
+print(my_data$activity[90])
+for (i in 1: nrow(my_data)) {
+  if (my_data$activity[i] <= 3) {
+    my_data$binaryclass[i] = 1
+  } else {
+    my_data$binaryclass[i] = 0
+  }
+}
+my_data_train <- select(my_data, -activity)
+head(my_data_train)
+print(my_data_train$binaryclass[1])
+print(my_data_train$binaryclass[90])
+```
+
+```{r}
+# create a new dataframe with the 561 parameters and activity column
+training_data <- na.omit(my_data_train[, c(2:562, 563)])
+head(training_data)
+fit.logit<-glm(binaryclass~.,data = training_data, family = binomial()) #GLM
+summary(fit.logit)
+
+
+```
+```{r}
+# read the .txt file into a dataframe
+test_data <- read.table("E://Desktop//Biostat 626//Midterm1//test_data.txt", header = TRUE)
+
+# print the first few rows of the dataframe to verify that it was read in correctly
+head(test_data)
+```
+```{r}
+prob <- predict(fit.logit, test_data, type = "response")
+print(as.integer(round((prob))))
+output1 <- as.integer(round((prob)))
+write.table(output1, file = 'binary_3712.txt', row.names = FALSE, col.names = FALSE)
+```
+
+
+
+
+```{r}
+#install.packages("randomForest")
+library(randomForest)
+set.seed(1234)
+##生成随机森林
+fit.forest<-randomForest(binaryclass~., data=training_data, na.action=na.roughfix, importance=TRUE)
+fit.forest
+```
+```{r}
+importance(fit.forest,type=2)##给出变量重要性
+forest.pred<-predict(fit.forest, test_data)
+```
+
+```{r}
+for (i in 1: nrow(my_data)) {
+  if (my_data$activity[i] >= 7) {
+    my_data$multiclass[i] = 7
+  } else {
+    my_data$multiclass[i] = my_data$activity[i]
+  }
+}
+my_data_train2 <- select(select(my_data, -activity), -binaryclass)
+head(my_data_train2)
+```
+```{r}
+training_data2 <- na.omit(my_data_train2[, c(2:562, 563)])
+head(training_data2)
+fit.logit2<-glm(multiclass~.,data = training_data2, family = poisson()) #GLM
+summary(fit.logit2)
+```
+```{r}
+prob2 <- predict(fit.logit2, test_data, type = "response")
+print(prob2)
+print(as.integer(round((prob2))))
+output2 <- as.integer(round((prob2)))
+for (i in 1:length(output2)) {
+  if (output2[i] >= 7) {
+    output2[i] <- 7
+  }
+}
+print(output2)
+write.table(output2, file = 'multi_3712.txt', row.names = FALSE, col.names = FALSE)
+```
+
+```{r}
+output3 <- output2
+output4 <- output2
+for (i in 1:length(output3)) {
+  if (output2[i] <= 3) {
+    output3[i] <- 1
+  } else {
+    output3[i] <- 0
+  }
+}
+for (i in 1:length(output3)) {
+  if (output3[i] != output1[i]) {
+    print(i)
+    print(output2[i])
+    print(output1[i])
+    print(output3[i])
+  }
+}
+for (i in 1:length(output3)) {
+  if (output3[i] != output1[i]) {
+    if (output2[i] == 3) {
+      output4[i] <- 4
+    } else {
+      output4[i] <- 3
+    }
+  }
+}
+print(output4)
+for (i in 1:length(output4)) {
+  if (output4[i] != output2[i]) {
+    print(i)
+    print(output4[i])
+  }
+}
+```
+```{r}
+write.table(output4, file = 'multiclass_3712.txt', row.names = FALSE, col.names = FALSE)
+```
+
+
+```{r}
+```
+```{r}
+for (i in 1:length(output3)) {
+  if (output2[i] <= 3) {
+    output3[i] <- 1
+  } else {
+    output3[i] <- 0
+  }
+}
+all.equal(output1, output2)
+```
+
+
+
+```{r}
+training_data3 <- training_data2
+# convert the response variable to a factor with appropriate levels
+training_data3$multiclass <- factor(training_data2$multiclass)
+
+# fit a multinomial logistic regression model using the multinom() function
+fit.logit3 <- multinom(multiclass ~ ., data = training_data3, maxit = 500)
+
+# make predictions on the validation data
+pred <- predict(fit.logit3, newdata = test_data, type = "class")
+print(pred)
+```
+```{r}
+# load the glmnet package
+library(glmnet)
+
+# convert factor variables to binary variables using one-hot encoding
+training_data3 <- model.matrix(~.-1, data=training_data3)
+
+# extract the response variable and predictor matrix
+y <- training_data3$class
+x <- as.matrix(training_data3[,2:ncol(training_data3)])
+
+# fit a regularized logistic regression model using Lasso regularization
+fit.logit4 <- cv.glmnet(x, y, family = "multinomial", alpha = 1)
+
+# convert factor variables to binary variables in the validation data
+test_data <- model.matrix(~.-1, data=test_data)
+
+# make predictions on the validation data
+pred <- predict(fit.logit4, newx = as.matrix(test_data[,2:ncol(test_data)]), type = "class")
+
+# evaluate model performance
+library(caret)
+confusionMatrix(pred, test_data$class)
+```
+```{r}
+# convert the response variable to a factor with appropriate levels
+training_data3$multiclass <- factor(training_data3$multiclass)
+
+# fit a regularized multinomial logistic regression model using Lasso regularization
+fit.logit <- cv.glmnet(as.matrix(training_data3[,2:ncol(training_data3)]), training_data3$multiclass, family = "multinomial", alpha = 1)
+
+# make predictions on the validation data
+pred <- predict(fit.logit, newx = as.matrix(validation_data3[,2:ncol(validation_data3)]), type = "class")
+
+# evaluate model performance
+library(caret)
+confusionMatrix(pred, validation_data3$multiclass)
+```
+```{r}
+# load the caret package
+library(caret)
+
+# define the control function for RFE
+ctrl <- rfeControl(functions = caretFuncs, method = "cv", number = 10, verbose = FALSE)
+
+# perform RFE with logistic regression
+fit.rfe <- rfe(x = as.matrix(training_data3[,2:562]), y = training_data3$multiclass, sizes = c(1:561), rfeControl = ctrl, method = "glm", metric = "Accuracy")
+
+# summarize the results
+print(fit.rfe)
+
+# plot the RFE results
+plot(fit.rfe, type = c("g", "o"))
+
+# extract the selected features
+selected_features <- predict(fit.rfe, as.matrix(training_data[,2:562]))$optVariables
+
+```
+
+```{r}
+library(xgboost)
+library(caret)
+library(e1071)
+```
+
+```{r}
+# Convert data to xgb.DMatrix format
+train_matrix <- xgb.DMatrix(as.matrix(train_data_preprocessed[, -ncol(train_data_preprocessed)]), label = as.numeric(train_data_preprocessed$target) - 1)
+test_matrix <- xgb.DMatrix(as.matrix(test_data_preprocessed[, -ncol(test_data_preprocessed)]), label = as.numeric(test_data_preprocessed$target) - 1)
+
+
+# Set up the XGBoost parameters
+params <- list(
+  objective = "multi:softprob",
+  eval_metric = "mlogloss",
+  num_class = length(levels(data$target)),
+  max_depth = 6,
+  eta = 0.3,
+  subsample = 0.8,
+  colsample_bytree = 0.8
+)
+
+# Train the model
+set.seed(123)
+model <- xgb.train(
+  params = params,
+  data = train_matrix,
+  nrounds = 100,
+  watchlist = list(train = train_matrix, test = test_matrix),
+  early_stopping_rounds = 10,
+  nthread = 4, # Number of threads to use for parallelization. Set it according to your system's specifications.
+  print_every_n = 10
+)
+
+# Predict on the test set
+predictions_prob <- predict(model, newdata = test_matrix)
+predictions <- matrix(predictions_prob, nrow = length(test_data_preprocessed$target), ncol = length(levels(data$target)))
+predictions <- max.col(predictions)
+
+# Confusion matrix and accuracy
+confusionMatrix(as.factor(predictions), test_data_preprocessed$target)
+
+# Other performance metrics
+precision <- posPredValue(confusionMatrix(as.factor(predictions), test_data
+```
+

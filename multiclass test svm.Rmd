@@ -1,0 +1,78 @@
+---
+title: "Untitled"
+author: "Weiyu Zeng"
+date: "2023-04-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Load necessary packages
+library(e1071)
+library(caret)
+library(dplyr)
+
+# Read in data
+my_data <- read.table("E://Desktop//Biostat 626//Midterm1//training_data.txt", header = TRUE)
+test_data <- read.table("E://Desktop//Biostat 626//Midterm1//test_data.txt", header = TRUE)
+
+# Create multiclass variable
+for (i in 1:nrow(my_data)) {
+  if (my_data$activity[i] >= 7) {
+    my_data$multiclass[i] = 7
+  } else {
+    my_data$multiclass[i] = my_data$activity[i]
+  }
+}
+my_data_train2 <- select(my_data, -activity)
+
+# Preprocess data
+train_data_preprocessed <- na.omit(my_data_train2[, c(2:562, 563)])
+train_data_centered <- apply(train_data_preprocessed, 2, mean)
+train_data_scaled <- apply(train_data_preprocessed, 2, sd)
+train_data_scaled[train_data_scaled == 0] <- 1
+scaled_data <- scale(train_data_preprocessed, center = train_data_centered, scale = train_data_scaled)
+
+```
+
+```{r}
+# Split data into training and testing sets
+set.seed(123)
+trainIndex <- createDataPartition(my_data$multiclass, p = 0.8, list = FALSE)
+trainData <- scaled_data[trainIndex, ]
+testData <- scaled_data[-trainIndex, ]
+
+# Train the SVM model
+svm_model <- svm(multiclass ~ ., data = trainData, kernel = "radial", gamma = 0.01, cost = 10)
+
+# Make predictions on the testing set
+predictions <- predict(svm_model, testData[, 1:561])
+
+# Evaluate the performance of the SVM model
+#confusionMatrix(predictions, testData$multiclass)
+
+# Scale the test data using the training data center and scale values
+newdata <- read.table("E://Desktop//Biostat 626//Midterm1//test_data.txt", header = TRUE)
+newdata_center <- apply(train_data_preprocessed[, 1:561], 2, mean)
+newdata_scale <- apply(train_data_preprocessed[, 1:561], 2, sd)
+newdata_scale[newdata_scale == 0] <- 1
+scaled_newdata <- scale(newdata[, 2:562], center = newdata_center, scale = newdata_scale)
+
+# Make predictions on the test data
+test_predictions <- predict(svm_model, scaled_newdata)
+
+# Round predictions and write to file
+test_predictions <- as.integer(round(test_predictions))
+for (i in 1:length(test_predictions)) {
+  if (test_predictions[i] >= 7) {
+    test_predictions[i] <- 7
+  }
+}
+
+write.table(test_predictions, file = 'multiclass_3712svm.txt', row.names = FALSE, col.names = FALSE)
+
+```
+
