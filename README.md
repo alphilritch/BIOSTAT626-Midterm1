@@ -1,13 +1,17 @@
 # BIOSTAT626-Midterm1
 All the code and the final results can be seen in this repository. The results can be repeated completely by the code.
 Original Data Source: https://github.com/xqwen/bios626/tree/main/data
+
 Environment: RStudio 2023.03.0+386 "Cherry Blossom" Release (3c53477afb13ab959aeb5b34df1f10c237b256c3, 2023-03-09) for Windows
 Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) RStudio/2023.03.0+386 Chrome/108.0.5359.179 Electron/22.0.3 Safari/537.36
+
 Instructions:
 Run all the R code. Because some possible problems about the environment, one can ignore the part which cannot run correctly and simply go on with next part.
 Please note that the address of the data in the code should be changed to work in other environments.
+
 Binary classification:
 Run BIOSTAT626 Midterm1 binary.Rmd till we get binary_3712.txt. 
+
 Multiclass:
 1. GLM method
 Run BIOSTAT626 Midterm1 binary.Rmd till we get multi_3712.txt. In the remaining part of the code, I have made some tests on multiclass.
